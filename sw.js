@@ -1,5 +1,5 @@
 // Bump VERSION on every release: this is what triggers the "Update available" banner.
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const CACHE = 'caffeine-' + VERSION;
 const FONT_CACHE = 'caffeine-fonts';
 const SHELL = ['./', 'index.html', 'manifest.json', 'favicon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png'];
