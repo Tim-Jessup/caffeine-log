@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Caffeine Log</title>
+<meta name="theme-color" content="#FFFFFF">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFFFFF;--surface:#FCFBF8;--border:#E6E2DA;--line:#D6D2CA;
+  --ink:#2A2521;--muted:#8D8273;--accent:#C0552E;--high:#2E8056;--med:#D98A1E;--low:#C13B33;
+  --radius:12px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 "Hanken Grotesk",sans-serif}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:baseline;justify-content:space-between;padding:8px 0 12px}
+h1{font:560 26px/1.1 Fraunces,serif;letter-spacing:-.01em;margin:0}
+h2{font:560 19px/1.2 Fraunces,serif;margin:0 0 10px}
+.muted{color:var(--muted)}
+.mono{font-family:"Spline Sans Mono",monospace;font-weight:500}
+.small{font-size:12.5px}
+
+/* tabs */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--border);
+  display:flex;justify-content:center;gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}
+nav.tabs button{flex:1;max-width:180px;border:1px solid transparent;background:none;border-radius:10px;padding:10px;font-weight:600;color:var(--muted)}
+nav.tabs button.on{color:var(--accent);background:rgba(192,85,46,.10)}
+section.view{display:none}section.view.on{display:block}
+
+/* card + spine */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+.spine{position:relative;padding-left:16px;border-left:4px solid var(--accent);background:rgba(192,85,46,.12);border-radius:var(--radius)}
+
+/* drink chips */
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.chip{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:500;line-height:1.2;text-align:center}
+.chip svg{width:26px;height:26px}
+.chip.on{border-color:var(--accent);background:rgba(192,85,46,.12)}
+label.f{display:block;font-weight:600;font-size:13px;margin:14px 0 6px}
+input[type=datetime-local],input[type=number],input[type=text],select{width:100%;border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:10px 12px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1}
+.pct{display:flex;gap:6px;margin-top:8px}
+.pct button{flex:1;border:1px solid var(--border);background:var(--bg);border-radius:8px;padding:6px 0;font-size:13px;font-weight:600}
+.pct button.on{border-color:var(--accent);color:var(--accent)}
+.btn{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:11px 14px;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;width:100%;margin-top:16px;padding:13px}
+.btn.danger{color:var(--low)}
+.summary{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:10px 14px}
+.summary .big{font:500 20px "Spline Sans Mono",monospace;color:rgba(192,85,46,.95)}
+
+/* calendar */
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.calhead button{border:1px solid var(--border);background:var(--bg);border-radius:8px;width:38px;height:34px;font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow{font-size:11px;font-weight:600;color:var(--muted);text-align:center;padding-bottom:2px}
+.day{min-height:68px;border:1px solid var(--border);border-radius:8px;padding:3px;background:var(--bg);display:flex;flex-direction:column;position:relative;text-align:left}
+.day.out{opacity:.35}
+.day.today{border-color:var(--accent)}
+.day.sel{outline:2px solid var(--accent);outline-offset:-1px}
+.day.mig{background:rgba(193,59,51,.10)}
+.day .n{font-size:11px;font-weight:600}
+.day .ic{display:flex;flex-wrap:wrap;gap:1px;margin-top:2px}
+.day .ic svg{width:15px;height:15px}
+.day .mg{margin-top:auto;font:500 10px "Spline Sans Mono",monospace;color:var(--muted)}
+.day .mflag{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--low)}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:4px}
+.legend svg{width:14px;height:14px}
+
+/* entries */
+.entry{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.entry:first-of-type{border-top:0}
+.entry svg{width:28px;height:28px;flex:none}
+.entry .t{flex:1}
+.entry .x{border:0;background:none;color:var(--muted);font-size:20px;padding:4px 8px}
+.migbtn{width:100%;margin-top:10px}
+.migbtn.on{background:rgba(193,59,51,.12);border-color:var(--low);color:var(--low)}
+
+/* update banner */
+#upd{position:fixed;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));max-width:536px;margin:0 auto;z-index:10;
+  display:none;align-items:center;gap:10px;padding:10px 14px;border:0;border-left:4px solid var(--high);
+  background:#EAF3EE;border-radius:10px;font-weight:600;font-size:14px;text-align:left;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+#upd.show{display:flex}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<button id="upd" type="button">Update available, tap to reload</button>
+<div class="wrap">
+  <header><h1>Caffeine Log</h1><span class="muted small" id="todayTotal"></span></header>
+
+  <!-- LOG -->
+  <section class="view on" id="v-log">
+    <div class="card">
+      <h2>Log a drink</h2>
+      <div class="chips" id="chips"></div>
+
+      <label class="f" for="when">Time</label>
+      <input type="datetime-local" id="when">
+
+      <div class="row">
+        <div><label class="f" for="size">Serving</label>
+          <input type="text" id="size" placeholder="e.g. regular cup"></div>
+        <div><label class="f" for="mg">Caffeine if finished (mg)</label>
+          <input type="number" id="mg" inputmode="numeric" min="0" step="5"></div>
+      </div>
+
+      <label class="f" for="pct">How much did you drink? <span class="mono" id="pctLbl">100%</span></label>
+      <input type="range" id="pct" min="0" max="100" step="5" value="100">
+      <div class="pct" id="pctBtns"></div>
+
+      <label class="f" for="note">Note (optional)</label>
+      <input type="text" id="note" placeholder="e.g. double shot, on empty stomach">
+
+      <div class="spine summary"><span>Caffeine consumed</span><span class="big" id="calc">0 mg</span></div>
+      <button class="btn primary" id="save">Save</button>
+    </div>
+    <div class="card">
+      <h2>Today</h2>
+      <div id="todayList"></div>
+    </div>
+  </section>
+
+  <!-- CALENDAR -->
+  <section class="view" id="v-cal">
+    <div class="card">
+      <div class="calhead">
+        <button id="prev" aria-label="Previous month">‹</button>
+        <h2 id="monLbl" style="margin:0"></h2>
+        <button id="next" aria-label="Next month">›</button>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="card" id="dayCard">
+      <h2 id="dayLbl"></h2>
+      <div id="dayList"></div>
+      <button class="btn migbtn" id="migBtn">Mark migraine on this day</button>
+    </div>
+  </section>
+
+  <!-- DATA -->
+  <section class="view" id="v-data">
+    <div class="card">
+      <h2>Your data</h2>
+      <p class="muted small" id="stats"></p>
+      <p class="small">Everything is stored on this phone only. Export a backup now and then.</p>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="expCsv">Export CSV</button>
+        <button class="btn" id="expJson">Backup (JSON)</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="impBtn">Restore backup</button>
+        <button class="btn danger" id="wipe">Delete all</button>
+      </div>
+      <input type="file" id="impFile" accept="application/json,.json" hidden>
+      <p class="muted small" id="persistNote" style="margin-top:12px"></p>
+    </div>
+    <div class="card">
+      <h2>Default caffeine values</h2>
+      <p class="muted small">Typical amounts for a full serving. Change the number on the log screen whenever a drink differs.</p>
+      <div id="defaults"></div>
+    </div>
+    <p class="muted small" style="text-align:center">v<span id="ver"></span></p>
+  </section>
+</div>
+
+<nav class="tabs">
+  <button data-v="log" class="on">Log</button>
+  <button data-v="cal">Calendar</button>
+  <button data-v="data">Data</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+const APP_VERSION = '1.0.0';
+const KEY = 'caffeine-log-v1';
+
+/* ---------- icons (simple inline SVG) ---------- */
+const ICONS = {
+  coffee:`<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="6.5" ry="9" transform="rotate(30 12 12)" fill="#6B4226"/><path d="M8.2 5.8c3 2.6 4.6 8.4 7.6 12.4" stroke="#C9A27E" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>`,
+  espresso:`<svg viewBox="0 0 24 24"><path d="M6 9h10v4a5 5 0 0 1-10 0z" fill="#4A2C1A"/><path d="M16 10h1.5a2 2 0 0 1 0 4H16" stroke="#4A2C1A" stroke-width="1.6" fill="none"/><rect x="4" y="19" width="14" height="1.8" rx=".9" fill="#8D8273"/><path d="M9 3.5c-1 1.2 1 1.8 0 3M12.5 3.5c-1 1.2 1 1.8 0 3" stroke="#8D8273" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`,
+  greentea:`<svg viewBox="0 0 24 24"><path d="M5 19C5 10 11 4 20 4c0 9-6 15-15 15z" fill="#2E8056"/><path d="M5 19C9 14 13 10 17 7" stroke="#CFE6D8" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>`,
+  blacktea:`<svg viewBox="0 0 24 24"><path d="M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z" fill="#A0522D"/><path d="M17 9.5h1.5a2.3 2.3 0 0 1 0 4.6H17" stroke="#A0522D" stroke-width="1.6" fill="none"/><path d="M13 3v5" stroke="#8D8273" stroke-width="1"/><rect x="11.5" y="5" width="3" height="3" fill="#D98A1E"/></svg>`,
+  matcha:`<svg viewBox="0 0 24 24"><path d="M3 10h18a9 9 0 0 1-18 0z" fill="#7FA650"/><ellipse cx="12" cy="10" rx="9" ry="2" fill="#A8C77A"/></svg>`,
+  energy:`<svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" fill="#2F5D8A"/><path d="M13 6l-4 7h3l-1 5 4-7h-3z" fill="#F2D24B"/></svg>`,
+  cola:`<svg viewBox="0 0 24 24"><path d="M6 4h12l-1.5 17h-9z" fill="#C13B33"/><path d="M6.4 8.5h11.2" stroke="#fff" stroke-width="1.2"/><path d="M14 1.5l-1 4" stroke="#8D8273" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  choc:`<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="1.5" fill="#5A3A22"/><path d="M5 9.3h14M5 14.6h14M12 4v16" stroke="#7B5236" stroke-width="1.2"/></svg>`,
+  other:`<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="#8A8275" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="#8A8275"/></svg>`
+};
+
+/* default mg for a full serving (typical values; editable per entry) */
+const DRINKS = [
+  {id:'coffee',   name:'Coffee',       mg:120, size:'cup (~250 ml)'},
+  {id:'espresso', name:'Espresso',     mg:65,  size:'single shot'},
+  {id:'greentea', name:'Green tea',    mg:30,  size:'cup (~250 ml)'},
+  {id:'blacktea', name:'Black tea',    mg:45,  size:'cup (~250 ml)'},
+  {id:'matcha',   name:'Matcha',       mg:70,  size:'1 tsp powder'},
+  {id:'energy',   name:'Energy drink', mg:80,  size:'250 ml can'},
+  {id:'cola',     name:'Cola',         mg:36,  size:'375 ml can'},
+  {id:'other',    name:'Other',        mg:50,  size:''}
+];
+const DMAP = Object.fromEntries(DRINKS.map(d=>[d.id,d]));
+const icon = id => ICONS[id] || ICONS.other;
+
+/* ---------- storage ---------- */
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d && d.entries) return {entries:d.entries, migraines:d.migraines||[], defaults:d.defaults||{}}; }catch(e){}
+  return {entries:[], migraines:[], defaults:{}};
+}
+let db = load();
+function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
+const defMg = id => (db.defaults[id] ?? DMAP[id].mg);
+
+if(navigator.storage && navigator.storage.persist){
+  navigator.storage.persist().then(ok=>{
+    document.getElementById('persistNote').textContent = ok
+      ? 'Storage is marked persistent, so Android won’t clear it to free space.'
+      : 'Tip: install the app to your home screen so Android keeps the data.';
+  });
+}
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const localInput = d => `${dayKey(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fmtTime = iso => new Date(iso).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+const consumed = e => Math.round(e.mg * e.pct / 100);
+const entriesOn = key => db.entries.filter(e=>dayKey(new Date(e.time))===key).sort((a,b)=>a.time.localeCompare(b.time));
+const dayTotal = key => entriesOn(key).reduce((s,e)=>s+consumed(e),0);
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+/* ---------- log form ---------- */
+let sel = 'coffee';
+function renderChips(){
+  $('chips').innerHTML = DRINKS.map(d=>`<button class="chip${d.id===sel?' on':''}" data-id="${d.id}">${icon(d.id)}${d.name}</button>`).join('');
+}
+$('chips').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  sel = b.dataset.id; renderChips();
+  $('mg').value = defMg(sel); $('size').value = DMAP[sel].size; calc();
+});
+$('pctBtns').innerHTML = [25,50,75,100].map(p=>`<button data-p="${p}">${p}%</button>`).join('');
+$('pctBtns').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; $('pct').value=b.dataset.p; calc(); });
+['pct','mg'].forEach(id=>$(id).addEventListener('input', calc));
+function calc(){
+  const p = +$('pct').value, mg = +$('mg').value || 0;
+  $('pctLbl').textContent = p+'%';
+  [...$('pctBtns').children].forEach(b=>b.classList.toggle('on', +b.dataset.p===p));
+  $('calc').textContent = Math.round(mg*p/100)+' mg';
+}
+function resetForm(){
+  $('when').value = localInput(new Date());
+  $('mg').value = defMg(sel); $('size').value = DMAP[sel].size;
+  $('pct').value = 100; $('note').value=''; calc();
+}
+$('save').addEventListener('click', ()=>{
+  const t = $('when').value ? new Date($('when').value) : new Date();
+  db.entries.push({
+    id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    time: t.toISOString(), drink: sel, size: $('size').value.trim(),
+    mg: +$('mg').value || 0, pct: +$('pct').value, note: $('note').value.trim()
+  });
+  save(); resetForm(); renderAll(); toast('Saved');
+});
+
+/* ---------- entry list ---------- */
+function entryHTML(e){
+  const d = DMAP[e.drink] || DMAP.other;
+  const extra = [e.size, e.note].filter(Boolean).join(' · ');
+  return `<div class="entry">${icon(e.drink)}<div class="t"><div><b>${d.name}</b> <span class="muted small">${fmtTime(e.time)}</span></div>
+    <div class="small muted">${e.pct}% of ${e.mg} mg${extra?' · '+escapeHTML(extra):''}</div></div>
+    <span class="mono">${consumed(e)} mg</span><button class="x" data-del="${e.id}" aria-label="Delete">×</button></div>`;
+}
+function escapeHTML(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function listHTML(key){
+  const es = entriesOn(key);
+  return es.length ? es.map(entryHTML).join('') + `<div class="entry"><div class="t"><b>Total</b></div><span class="mono">${dayTotal(key)} mg</span><span style="width:36px"></span></div>`
+                   : '<p class="muted small">No caffeine logged.</p>';
+}
+document.addEventListener('click', e=>{
+  const id = e.target.dataset && e.target.dataset.del; if(!id) return;
+  if(!confirm('Delete this entry?')) return;
+  db.entries = db.entries.filter(x=>x.id!==id); save(); renderAll();
+});
+
+/* ---------- calendar ---------- */
+let view = new Date(); view.setDate(1);
+let selDay = dayKey(new Date());
+function renderCal(){
+  $('monLbl').textContent = view.toLocaleDateString([], {month:'long', year:'numeric'});
+  const first = new Date(view); const start = new Date(first);
+  start.setDate(1 - ((first.getDay()+6)%7)); // Monday start
+  const today = dayKey(new Date());
+  let h = ['M','T','W','T','F','S','S'].map(d=>`<div class="dow">${d}</div>`).join('');
+  for(let i=0;i<42;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const k = dayKey(d), es = entriesOn(k), tot = dayTotal(k), mig = db.migraines.includes(k);
+    if(i===35 && d.getMonth()!==view.getMonth()) break;
+    const icons = es.slice(0,6).map(e=>icon(e.drink)).join('') + (es.length>6?'<span class="small">+</span>':'');
+    h += `<button class="day${d.getMonth()!==view.getMonth()?' out':''}${k===today?' today':''}${k===selDay?' sel':''}${mig?' mig':''}" data-k="${k}">
+      <span class="n">${d.getDate()}</span>${mig?'<span class="mflag"></span>':''}<span class="ic">${icons}</span>${tot?`<span class="mg">${tot}</span>`:''}</button>`;
+  }
+  $('grid').innerHTML = h;
+  $('legend').innerHTML = DRINKS.map(d=>`<span>${icon(d.id)}${d.name}</span>`).join('') +
+    '<span><span style="width:8px;height:8px;border-radius:50%;background:var(--low);display:inline-block"></span>Migraine</span>';
+  renderDay();
+}
+function renderDay(){
+  const d = new Date(selDay+'T12:00');
+  $('dayLbl').textContent = d.toLocaleDateString([], {weekday:'long', day:'numeric', month:'long'});
+  $('dayList').innerHTML = listHTML(selDay);
+  const on = db.migraines.includes(selDay);
+  $('migBtn').classList.toggle('on', on);
+  $('migBtn').textContent = on ? 'Migraine marked (tap to remove)' : 'Mark migraine on this day';
+}
+$('grid').addEventListener('click', e=>{ const b=e.target.closest('.day'); if(!b) return; selDay=b.dataset.k; renderCal(); });
+$('prev').onclick = ()=>{ view.setMonth(view.getMonth()-1); renderCal(); };
+$('next').onclick = ()=>{ view.setMonth(view.getMonth()+1); renderCal(); };
+$('migBtn').onclick = ()=>{
+  db.migraines = db.migraines.includes(selDay) ? db.migraines.filter(k=>k!==selDay) : [...db.migraines, selDay].sort();
+  save(); renderCal();
+};
+
+/* ---------- data ---------- */
+function download(name, text, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+$('expCsv').onclick = ()=>{
+  const rows = [['date','time','drink','serving','full_serving_mg','percent_drunk','caffeine_mg','note','migraine_that_day']];
+  [...db.entries].sort((a,b)=>a.time.localeCompare(b.time)).forEach(e=>{
+    const d = new Date(e.time), k = dayKey(d);
+    rows.push([k, `${pad(d.getHours())}:${pad(d.getMinutes())}`, (DMAP[e.drink]||DMAP.other).name, e.size, e.mg, e.pct, consumed(e), e.note, db.migraines.includes(k)?'yes':'no']);
+  });
+  db.migraines.filter(k=>!entriesOn(k).length).forEach(k=>rows.push([k,'','none','','',0,0,'','yes']));
+  rows.sort((a,b)=> a===rows[0]?-1:b===rows[0]?1:(a[0]+a[1]).localeCompare(b[0]+b[1]));
+  const csv = rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  download(`caffeine-${dayKey(new Date())}.csv`, csv, 'text/csv');
+};
+$('expJson').onclick = ()=> download(`caffeine-backup-${dayKey(new Date())}.json`, JSON.stringify({app:'caffeine-log', version:APP_VERSION, ...db}, null, 1), 'application/json');
+$('impBtn').onclick = ()=> $('impFile').click();
+$('impFile').onchange = async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  try{
+    const d = JSON.parse(await f.text());
+    if(!Array.isArray(d.entries)) throw 0;
+    if(!confirm(`Restore ${d.entries.length} entries? This merges with what's here.`)) return;
+    const ids = new Set(db.entries.map(x=>x.id));
+    db.entries.push(...d.entries.filter(x=>!ids.has(x.id)));
+    db.migraines = [...new Set([...db.migraines, ...(d.migraines||[])])].sort();
+    db.defaults = {...(d.defaults||{}), ...db.defaults};
+    save(); renderAll(); toast('Restored');
+  }catch(err){ alert('That file isn’t a Caffeine Log backup.'); }
+  e.target.value='';
+};
+$('wipe').onclick = ()=>{
+  if(!confirm('Delete ALL entries and migraine marks? Export a backup first if unsure.')) return;
+  if(!confirm('Really delete everything?')) return;
+  db = {entries:[], migraines:[], defaults:db.defaults}; save(); renderAll();
+};
+function renderDefaults(){
+  $('defaults').innerHTML = DRINKS.map(d=>`<div class="entry">${icon(d.id)}<div class="t"><b>${d.name}</b><div class="small muted">${d.size||'any'}</div></div>
+    <input type="number" inputmode="numeric" data-def="${d.id}" value="${defMg(d.id)}" style="width:84px;flex:none"> <span class="small muted">mg</span></div>`).join('');
+}
+$('defaults').addEventListener('change', e=>{
+  const id = e.target.dataset.def; if(!id) return;
+  db.defaults[id] = +e.target.value || 0; save();
+  if(id===sel) { $('mg').value = defMg(sel); calc(); }
+});
+
+/* ---------- render ---------- */
+function renderAll(){
+  const tk = dayKey(new Date());
+  $('todayList').innerHTML = listHTML(tk);
+  $('todayTotal').textContent = `Today ${dayTotal(tk)} mg`;
+  const days = new Set(db.entries.map(e=>dayKey(new Date(e.time)))).size;
+  $('stats').textContent = `${db.entries.length} drinks over ${days} days · ${db.migraines.length} migraine days marked`;
+  renderCal(); renderDefaults();
+}
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on', x===b));
+  document.querySelectorAll('section.view').forEach(s=>s.classList.toggle('on', s.id==='v-'+b.dataset.v));
+  if(b.dataset.v==='log' && !$('note').value) $('when').value = localInput(new Date());
+  window.scrollTo(0,0);
+});
+$('ver').textContent = APP_VERSION;
+renderChips(); resetForm(); renderAll();
+
+/* ---------- service worker + update banner ---------- */
+if('serviceWorker' in navigator){
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if(refreshing) return; refreshing = true; location.reload(); });
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    const show = w => { const b=$('upd'); b.classList.add('show'); b.onclick = ()=>{ b.textContent='Updating…'; w.postMessage('SKIP_WAITING'); }; };
+    if(reg.waiting && navigator.serviceWorker.controller) show(reg.waiting);
+    reg.addEventListener('updatefound', ()=>{
+      const w = reg.installing;
+      w.addEventListener('statechange', ()=>{ if(w.state==='installed' && navigator.serviceWorker.controller) show(w); });
+    });
+    // check for updates when the app is reopened
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') reg.update(); });
+  });
+}
+</script>
+</body>
+</html>
