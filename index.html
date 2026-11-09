@@ -6,7 +6,7 @@
 <title>Caffeine Log</title>
 <meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon-192.png">
+<link rel="icon" href="favicon.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,11 +40,12 @@ section.view{display:none}section.view.on{display:block}
 .spine{position:relative;padding-left:16px;border-left:4px solid var(--accent);background:rgba(192,85,46,.12);border-radius:var(--radius)}
 
 /* drink chips */
-.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.chips{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .chip{border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:500;line-height:1.2;text-align:center}
 .chip svg{width:26px;height:26px}
 .chip.on{border-color:var(--accent);background:rgba(192,85,46,.12)}
 label.f{display:block;font-weight:600;font-size:13px;margin:14px 0 6px}
+select{appearance:none;-webkit-appearance:none;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238D8273' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat right 12px center;padding-right:32px}
 input[type=datetime-local],input[type=number],input[type=text],select{width:100%;border:1px solid var(--border);background:var(--bg);border-radius:10px;padding:10px 12px}
 input[type=range]{width:100%;accent-color:var(--accent)}
 .row{display:flex;gap:10px;align-items:center}
@@ -111,8 +112,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
       <div class="row">
         <div><label class="f" for="size">Serving</label>
-          <input type="text" id="size" placeholder="e.g. regular cup"></div>
-        <div><label class="f" for="mg">Caffeine if finished (mg)</label>
+          <select id="size"></select></div>
+        <div><label class="f" for="mg">Caffeine if all drunk (mg)</label>
           <input type="number" id="mg" inputmode="numeric" min="0" step="5"></div>
       </div>
 
@@ -168,8 +169,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <p class="muted small" id="persistNote" style="margin-top:12px"></p>
     </div>
     <div class="card">
-      <h2>Default caffeine values</h2>
-      <p class="muted small">Typical amounts for a full serving. Change the number on the log screen whenever a drink differs.</p>
+      <h2>Caffeine per 250 mL</h2>
+      <p class="muted small">Typical amounts. The log screen scales these to the serving size you pick, and you can still override the number for any one drink.</p>
       <div id="defaults"></div>
     </div>
     <p class="muted small" style="text-align:center">v<span id="ver"></span></p>
@@ -184,7 +185,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <div id="toast"></div>
 
 <script>
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const KEY = 'caffeine-log-v1';
 
 /* ---------- icons (simple inline SVG) ---------- */
@@ -200,28 +201,32 @@ const ICONS = {
   other:`<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="#8A8275" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="#8A8275"/></svg>`
 };
 
-/* default mg for a full serving (typical values; editable per entry) */
+/* caffeine per 250 mL (typical values; editable on the Data tab) */
 const DRINKS = [
-  {id:'coffee',   name:'Coffee',       mg:120, size:'cup (~250 ml)'},
-  {id:'espresso', name:'Espresso',     mg:65,  size:'single shot'},
-  {id:'greentea', name:'Green tea',    mg:30,  size:'cup (~250 ml)'},
-  {id:'blacktea', name:'Black tea',    mg:45,  size:'cup (~250 ml)'},
-  {id:'matcha',   name:'Matcha',       mg:70,  size:'1 tsp powder'},
-  {id:'energy',   name:'Energy drink', mg:80,  size:'250 ml can'},
-  {id:'cola',     name:'Cola',         mg:36,  size:'375 ml can'},
-  {id:'other',    name:'Other',        mg:50,  size:''}
+  {id:'coffee',   name:'Coffee',    per250:120, ml:250},
+  {id:'greentea', name:'Green tea', per250:30,  ml:250},
+  {id:'blacktea', name:'Black tea', per250:45,  ml:250},
+  {id:'cola',     name:'Coca-Cola', per250:24,  ml:375},
+  {id:'other',    name:'Other',     per250:50,  ml:250}
 ];
-const DMAP = Object.fromEntries(DRINKS.map(d=>[d.id,d]));
+// earlier drink types, kept only so any old entries still display
+const LEGACY = [
+  {id:'espresso', name:'Espresso'}, {id:'matcha', name:'Matcha'},
+  {id:'energy', name:'Energy drink'}, {id:'choc', name:'Chocolate'}
+];
+const SIZES = [150, 200, 250, 375, 500, 600];
+const DMAP = Object.fromEntries([...DRINKS, ...LEGACY].map(d=>[d.id,d]));
 const icon = id => ICONS[id] || ICONS.other;
 
 /* ---------- storage ---------- */
 function load(){
-  try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d && d.entries) return {entries:d.entries, migraines:d.migraines||[], defaults:d.defaults||{}}; }catch(e){}
-  return {entries:[], migraines:[], defaults:{}};
+  try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d && d.entries) return {entries:d.entries, migraines:d.migraines||[], defaults250:d.defaults250||{}}; }catch(e){}
+  return {entries:[], migraines:[], defaults250:{}};
 }
 let db = load();
 function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
-const defMg = id => (db.defaults[id] ?? DMAP[id].mg);
+const per250 = id => (db.defaults250[id] ?? DMAP[id].per250);
+const mgFor = (id, ml) => Math.round(per250(id) * ml / 250);
 
 if(navigator.storage && navigator.storage.persist){
   navigator.storage.persist().then(ok=>{
@@ -250,8 +255,10 @@ function renderChips(){
 $('chips').addEventListener('click', e=>{
   const b = e.target.closest('.chip'); if(!b) return;
   sel = b.dataset.id; renderChips();
-  $('mg').value = defMg(sel); $('size').value = DMAP[sel].size; calc();
+  $('size').value = DMAP[sel].ml; $('mg').value = mgFor(sel, DMAP[sel].ml); calc();
 });
+$('size').innerHTML = SIZES.map(v=>`<option value="${v}">${v} mL</option>`).join('');
+$('size').addEventListener('change', ()=>{ $('mg').value = mgFor(sel, +$('size').value); calc(); });
 $('pctBtns').innerHTML = [25,50,75,100].map(p=>`<button data-p="${p}">${p}%</button>`).join('');
 $('pctBtns').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; $('pct').value=b.dataset.p; calc(); });
 ['pct','mg'].forEach(id=>$(id).addEventListener('input', calc));
@@ -263,14 +270,14 @@ function calc(){
 }
 function resetForm(){
   $('when').value = localInput(new Date());
-  $('mg').value = defMg(sel); $('size').value = DMAP[sel].size;
+  $('size').value = DMAP[sel].ml; $('mg').value = mgFor(sel, DMAP[sel].ml);
   $('pct').value = 100; $('note').value=''; calc();
 }
 $('save').addEventListener('click', ()=>{
   const t = $('when').value ? new Date($('when').value) : new Date();
   db.entries.push({
     id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
-    time: t.toISOString(), drink: sel, size: $('size').value.trim(),
+    time: t.toISOString(), drink: sel, size: $('size').value + ' mL', ml: +$('size').value,
     mg: +$('mg').value || 0, pct: +$('pct').value, note: $('note').value.trim()
   });
   save(); resetForm(); renderAll(); toast('Saved');
@@ -362,7 +369,7 @@ $('impFile').onchange = async e=>{
     const ids = new Set(db.entries.map(x=>x.id));
     db.entries.push(...d.entries.filter(x=>!ids.has(x.id)));
     db.migraines = [...new Set([...db.migraines, ...(d.migraines||[])])].sort();
-    db.defaults = {...(d.defaults||{}), ...db.defaults};
+    db.defaults250 = {...(d.defaults250||{}), ...db.defaults250};
     save(); renderAll(); toast('Restored');
   }catch(err){ alert('That file isn’t a Caffeine Log backup.'); }
   e.target.value='';
@@ -370,16 +377,16 @@ $('impFile').onchange = async e=>{
 $('wipe').onclick = ()=>{
   if(!confirm('Delete ALL entries and migraine marks? Export a backup first if unsure.')) return;
   if(!confirm('Really delete everything?')) return;
-  db = {entries:[], migraines:[], defaults:db.defaults}; save(); renderAll();
+  db = {entries:[], migraines:[], defaults250:db.defaults250}; save(); renderAll();
 };
 function renderDefaults(){
-  $('defaults').innerHTML = DRINKS.map(d=>`<div class="entry">${icon(d.id)}<div class="t"><b>${d.name}</b><div class="small muted">${d.size||'any'}</div></div>
-    <input type="number" inputmode="numeric" data-def="${d.id}" value="${defMg(d.id)}" style="width:84px;flex:none"> <span class="small muted">mg</span></div>`).join('');
+  $('defaults').innerHTML = DRINKS.map(d=>`<div class="entry">${icon(d.id)}<div class="t"><b>${d.name}</b></div>
+    <input type="number" inputmode="numeric" data-def="${d.id}" value="${per250(d.id)}" style="width:84px;flex:none"> <span class="small muted">mg</span></div>`).join('');
 }
 $('defaults').addEventListener('change', e=>{
   const id = e.target.dataset.def; if(!id) return;
-  db.defaults[id] = +e.target.value || 0; save();
-  if(id===sel) { $('mg').value = defMg(sel); calc(); }
+  db.defaults250[id] = +e.target.value || 0; save();
+  if(id===sel) { $('mg').value = mgFor(sel, +$('size').value); calc(); }
 });
 
 /* ---------- render ---------- */

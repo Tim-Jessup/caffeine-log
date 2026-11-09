@@ -1,8 +1,8 @@
 // Bump VERSION on every release: this is what triggers the "Update available" banner.
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const CACHE = 'caffeine-' + VERSION;
 const FONT_CACHE = 'caffeine-fonts';
-const SHELL = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const SHELL = ['./', 'index.html', 'manifest.json', 'favicon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: 'reload'})))));
